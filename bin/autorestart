@@ -1,0 +1,55 @@
+#!/usr/bin/env python
+
+__description__ = "a simple script that monitors a specific command line and will restart the process if necessary. This is meant to be run under cron and therefore starts from scratch periodically."
+__author__ = "Reed Essick <reed.essick@gmail.com>"
+__doc__ = "\n\n".join([__description__, __author__])
+
+#-------------------------------------------------
+
+import psutil
+
+from argparse import ArgumentParser
+
+#-------------------------------------------------
+
+DEFAULT_NUM_INSTANCES = 1
+DEFAULT_CADENCE = 0.1
+
+DEFAULT_LOG_DIR = '.'
+DEFAULT_TAG = ''
+
+#-------------------------------------------------
+
+parser = ArgumentParser(description=__doc__)
+
+# monitoring arguments
+mgroup = parser.add_argument_group('monitoring options')
+mgroup.add_argument('-c', '--cmd', required=True, nargs='?', type=str,
+    help='search for this command in the process table')
+mgroup.add_argument('-n', '--num-instances', default=DEFAULT_NUM_INSTANCES, type=int,
+    help='maining this number of instances of --cmd. \
+DEFAULT=%d'%DEFAULT_NUM_INSTANCES)
+mgroup.add_argument('-s', '--cadence', default=DEFAULT_CADENCE, type=float,
+    help='if --persist is supplied, check for process existence very --cadence seconds. \
+DEFAULT=%.3f'%DEFAULT_CADENCE)
+
+# logging options
+lgroup = parser.add_argument_group('logging options')
+lgroup.add_argument('-v', '--verbose', default=False, action='store_true',
+    help='route output to the terminal in addition to the log file.')
+lgroup.add_argument('-l', '--log-dir', default=DEFAULT_LOG_DIR, type=str,
+    help='the directory in which we create the log file. \
+DEFAULT="%s"'%DEFAULT_LOG_DIR)
+lgroup.add_argument('-t', '--tag', default=DEFAULT_TAG, type=str,
+    help='a tag to identify this monitoring process. \
+DEFAULT="%s"'%DEFAULT_TAG)
+
+args = parser.parse_args()
+
+args.log_dir = os.path.abspath(args.log_dir)
+if args.tag:
+    args.tag = "_"+args.tag
+
+#-------------------------------------------------
+
+raise NotImplementedError
