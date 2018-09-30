@@ -6,17 +6,11 @@ __doc__ = "\n\n".join([__description__, __author__])
 
 #-------------------------------------------------
 
-import psutil
-
+import time
 from argparse import ArgumentParser
 
-#-------------------------------------------------
-
-DEFAULT_NUM_INSTANCES = 1
-DEFAULT_CADENCE = 0.1
-
-DEFAULT_LOG_DIR = '.'
-DEFAULT_TAG = ''
+### non-standard libraries
+from autorestart import utils
 
 #-------------------------------------------------
 
@@ -24,32 +18,81 @@ parser = ArgumentParser(description=__doc__)
 
 # monitoring arguments
 mgroup = parser.add_argument_group('monitoring options')
+
 mgroup.add_argument('-c', '--cmd', required=True, nargs='?', type=str,
     help='search for this command in the process table')
-mgroup.add_argument('-n', '--num-instances', default=DEFAULT_NUM_INSTANCES, type=int,
+
+mgroup.add_argument('-n', '--num-instances', default=utils.DEFAULT_NUM_INSTANCES, type=int,
     help='maining this number of instances of --cmd. \
 DEFAULT=%d'%DEFAULT_NUM_INSTANCES)
-mgroup.add_argument('-s', '--cadence', default=DEFAULT_CADENCE, type=float,
-    help='if --persist is supplied, check for process existence very --cadence seconds. \
+mgroup.add_argument('-R', '--restart', default=False, action='store_true',
+    help='automatically restart enough processes to get back to --num-instances')
+
+mgroup.add_argument('-N', '--num-trials', default=DEFAULT_NUM_TRIALS, type=float,
+    help='stick around and check for the process\'s existence this number of times. \
+If infty is specified, will persist indefinitely. \
+DEFAULT=%d'%DEFAULT_NUM_TRIALS)
+mgroup.add_argument('-s', '--cadence', default=utils.DEFAULT_CADENCE, type=float,
+    help='if --num-trials > 1, check for process existence very --cadence seconds. \
 DEFAULT=%.3f'%DEFAULT_CADENCE)
 
 # logging options
 lgroup = parser.add_argument_group('logging options')
+
 lgroup.add_argument('-v', '--verbose', default=False, action='store_true',
     help='route output to the terminal in addition to the log file.')
-lgroup.add_argument('-l', '--log-dir', default=DEFAULT_LOG_DIR, type=str,
+lgroup.add_argument('-L', '--log-level', default=utils.DEFAULT_LOG_LEVEL, type=float)
+
+lgroup.add_argument('-o', '--out-dir', default=utils.DEFAULT_LOG_DIR, type=str,
+    help='the directory into which STDOUT and STDERR files are written upon automatic restart. \
+DEFAULT=%s'%utils.DEFAULT_LOG_DIR)
+lgroup.add_argument('-l', '--log-dir', default=utils.DEFAULT_LOG_DIR, type=str,
     help='the directory in which we create the log file. \
 DEFAULT="%s"'%DEFAULT_LOG_DIR)
-lgroup.add_argument('-t', '--tag', default=DEFAULT_TAG, type=str,
+lgroup.add_argument('-t', '--tag', default=utils.DEFAULT_TAG, type=str,
     help='a tag to identify this monitoring process. \
 DEFAULT="%s"'%DEFAULT_TAG)
+
+# alerting options
+agroup = parser.add_argument_group('alerting options')
+
+agroup.add_argument('-r', '--recipient', default=utils.DEFAULT_RECIPIENTS, type=str, action='append',
+    help='email address of those to be alerted when a process is restarted. \
+Can be repeated to specify multiple recipients. \
+DEFAULT=%s'%(utils.DEFAULT_RECIPIENTS))
 
 args = parser.parse_args()
 
 args.log_dir = os.path.abspath(args.log_dir)
-if args.tag:
-    args.tag = "_"+args.tag
 
 #-------------------------------------------------
 
-raise NotImplementedError
+### get logger
+logger = utils.logger(tag=args.tag, directory=args.log_dir, log_level=args.log_level, verbose=args.verbose)
+
+### check process table
+utils.autorestart(
+    args.cmd,
+    retart=args.restart,
+    num_instances=args.num_instances,
+    directory=args.out_dir,
+    recipients=args.recipients,
+    logger=logger,
+)
+ags.num_trials -= 1
+
+### repeat this for some number of trials
+sleep_string = 'sleeping for %.3 sec'%cadence ### define this once outside the loop
+while args.num_trials > 0:
+    logger.info(sleep_string)
+    time.sleep(args.cadence)
+
+    utils.autorestart(
+        args.cmd,
+        restart=args.restart,
+        num_instances=args.num_instances,
+        directory=args.out_dir,
+        recipients=args.recipients,
+        logger=logger,
+    )
+    ags.num_trials -= 1
