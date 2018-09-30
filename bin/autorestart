@@ -63,7 +63,15 @@ DEFAULT=%s'%(utils.DEFAULT_RECIPIENTS))
 
 args = parser.parse_args()
 
+args.out_dir = os.path.abspath(args.out_dir)
 args.log_dir = os.path.abspath(args.log_dir)
+
+for path in [args.out_dir, args.log_dir]:
+    if not os.path.exists(path):
+        try:
+            os.makedirs(path)
+        except OSError: ### already exists, may be due to another process creating the directory
+            pass
 
 #-------------------------------------------------
 

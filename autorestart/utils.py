@@ -5,15 +5,16 @@ __author__ = "Reed Essick (reed.essick@ligo.org)"
 
 import os
 import logging
-import getpass ### used to discover the username
 import random
+
+import subprocess as sp
 
 ### non-standard libraries
 import psutil # use this to re-launch processes as well (similar syntax to subprocess)
 
 #-------------------------------------------------
 
-DEFAULT_USERNAME=getpass.getuser()
+DEFAULT_USERNAME=os.genenv('USER')
 
 DEFAULT_NUM_INSTANCES = 1
 DEFAULT_NUM_TRIALS = 1
@@ -63,12 +64,6 @@ def logpath(name, directory=DEFAULT_LOG_DIR):
 #-------------------------------------------------
 
 def logger(tag=DEFAULT_TAG, directory=DEFAULT_LOG_DIR, log_leval=DEFAULT_LOG_LEVEL, verbose=False):
-    if not os.path.exists(directory):
-        try:
-            os.makedirs(directory)
-        except OSError: ### already exists, may be due to another process creating the directory
-            pass
-
     name = logname(tag=tag)
     path = logpath(name, directory=directory)
 
@@ -120,13 +115,40 @@ def restart(cmdline, DIRECTORY=DEFAULT_LOG_DIR, logger=None):
 
 YESALERTTEMP='alerting: %s'
 MISSALERTTEMP='no one to alert'
-def alert(cmdline, username, num_found, num_instances, recipeients=DEFAULT_RECIPIENTS, logger=None):
-    if logger is not None:
-        if recipients:
+SUBJECTTEMP='%(num_new)d %(name)s processes restarted on %(hostname)s'
+BODYTEMP='''\
+%(cmdline)s
+hostname : %(hostname)s
+username : %(username)s
+sought : %(num_instances)d
+found : %(num_found)d
+date : %(date)s'''
+def alert(cmdline, username, num_new, num_instances, recipeients=DEFAULT_RECIPIENTS, logger=None):
+    if recipients:
+        if logger is not None:
             logger.info(YESALERT%recipients)
-        else:
-            logger.info(MISSALERT)
-    raise NotImplementedError('alert recipients that we took action')
+
+        d = {
+            'cmdline':' '.join(cmdline),
+            'name':os.path.basename(cmdline[0]),
+            'hostname':os.getenv('HOSTNAME'),
+            'username':username,
+            'num_new':num_new,
+            'num_instances':num_instances,
+            'num_found':num_instances-num_new,
+            'date':time.ctime(), ### local time
+        }
+        subject = SUBJECTTEMP%d
+        body = BODYTEMP%d
+
+        proc = psutil.Popen(['mailx', '-s', subject]+recipients, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE)
+        out, err = proc.communicate(body)
+        if proc.returncode: ### something bad happened
+            logger.error('stdout: '+stdout)
+            logger.error('stderr: '+stderr)
+
+    elif logger is not None:
+        logger.info(MISSALERT)
 
 #------------------------
 
@@ -149,7 +171,7 @@ def autorestart(cmdline, username=DEFAULT_USERNAME, num_instances=DEFAULT_NUM_IN
                 restart(cmdline, directory=directory, logger=None)
 
             if recipients:
-                alert(cmdline, username, num_found, num_instances, recipients=recipients, logger=logger)
+                alert(cmdline, username, num_new, num_instances, recipients=recipients, logger=logger)
 
         else:
             logger.info(NOALERTTEMP)
