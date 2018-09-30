@@ -19,39 +19,41 @@ parser = ArgumentParser(description=__doc__)
 # monitoring arguments
 mgroup = parser.add_argument_group('monitoring options')
 
-mgroup.add_argument('-c', '--cmd', required=True, nargs='?', type=str,
+mgroup.add_argument('cmdline', nargs='?', type=str,
     help='search for this command in the process table')
+mgroup.add_argument('-e', '--env', default=None, type=str,
+    help='path to an environmental setup script that will be run before we restart any processes. \
+DEFAULT=None (no environment sourced)')
 
 mgroup.add_argument('-n', '--num-instances', default=utils.DEFAULT_NUM_INSTANCES, type=int,
     help='maining this number of instances of --cmd. \
-DEFAULT=%d'%DEFAULT_NUM_INSTANCES)
-mgroup.add_argument('-R', '--restart', default=False, action='store_true',
-    help='automatically restart enough processes to get back to --num-instances')
+DEFAULT=%d'%utils.DEFAULT_NUM_INSTANCES)
 
-mgroup.add_argument('-N', '--num-trials', default=DEFAULT_NUM_TRIALS, type=float,
+mgroup.add_argument('-N', '--num-trials', default=utils.DEFAULT_NUM_TRIALS, type=float,
     help='stick around and check for the process\'s existence this number of times. \
 If infty is specified, will persist indefinitely. \
-DEFAULT=%d'%DEFAULT_NUM_TRIALS)
+DEFAULT=%d'%utils.DEFAULT_NUM_TRIALS)
 mgroup.add_argument('-s', '--cadence', default=utils.DEFAULT_CADENCE, type=float,
     help='if --num-trials > 1, check for process existence very --cadence seconds. \
-DEFAULT=%.3f'%DEFAULT_CADENCE)
+DEFAULT=%.3f'%utils.DEFAULT_CADENCE)
 
 # logging options
 lgroup = parser.add_argument_group('logging options')
 
 lgroup.add_argument('-v', '--verbose', default=False, action='store_true',
     help='route output to the terminal in addition to the log file.')
-lgroup.add_argument('-L', '--log-level', default=utils.DEFAULT_LOG_LEVEL, type=float)
+lgroup.add_argument('-L', '--log-level', default=utils.DEFAULT_LOG_LEVEL, type=int, 
+    help='DEFAULT=%d'%utils.DEFAULT_LOG_LEVEL)
 
 lgroup.add_argument('-o', '--out-dir', default=utils.DEFAULT_LOG_DIR, type=str,
     help='the directory into which STDOUT and STDERR files are written upon automatic restart. \
 DEFAULT=%s'%utils.DEFAULT_LOG_DIR)
 lgroup.add_argument('-l', '--log-dir', default=utils.DEFAULT_LOG_DIR, type=str,
     help='the directory in which we create the log file. \
-DEFAULT="%s"'%DEFAULT_LOG_DIR)
+DEFAULT="%s"'%utils.DEFAULT_LOG_DIR)
 lgroup.add_argument('-t', '--tag', default=utils.DEFAULT_TAG, type=str,
     help='a tag to identify this monitoring process. \
-DEFAULT="%s"'%DEFAULT_TAG)
+DEFAULT="%s"'%utils.DEFAULT_TAG)
 
 # alerting options
 agroup = parser.add_argument_group('alerting options')
@@ -62,6 +64,8 @@ Can be repeated to specify multiple recipients. \
 DEFAULT=%s'%(utils.DEFAULT_RECIPIENTS))
 
 args = parser.parse_args()
+
+#------------------------
 
 args.out_dir = os.path.abspath(args.out_dir)
 args.log_dir = os.path.abspath(args.log_dir)
@@ -81,7 +85,7 @@ logger = utils.logger(tag=args.tag, directory=args.log_dir, log_level=args.log_l
 ### check process table
 utils.autorestart(
     args.cmd,
-    retart=args.restart,
+    env=args.env,
     num_instances=args.num_instances,
     directory=args.out_dir,
     recipients=args.recipients,
@@ -97,7 +101,7 @@ while args.num_trials > 0:
 
     utils.autorestart(
         args.cmd,
-        restart=args.restart,
+        env=args.env,
         num_instances=args.num_instances,
         directory=args.out_dir,
         recipients=args.recipients,

@@ -18,11 +18,11 @@ setup(
     description = __description__,
     license = 'MIT',
     scripts = [
-        'bin/autorestart',            ### batch pipeline scripts
+        'bin/autorestart',
     ],
     packages = [
         'autorestart',
     ],
     data_files = [],
-    requires = [],
+    requires = ['psutil'],
 )
