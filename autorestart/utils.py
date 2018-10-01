@@ -45,7 +45,7 @@ def randname(base, num=DEFAULT_RAND_NUM):
 def logname(tag=DEFAULT_TAG):
     if tag:
         tag = "_"+tag
-    return "autrestart%s"%tag
+    return "autorestart%s"%tag
 
 #------------------------
 
