@@ -6,7 +6,9 @@ __doc__ = "\n\n".join([__description__, __author__])
 
 #-------------------------------------------------
 
+import os
 import time
+
 from argparse import ArgumentParser
 
 ### non-standard libraries
@@ -19,8 +21,8 @@ parser = ArgumentParser(description=__doc__)
 # monitoring arguments
 mgroup = parser.add_argument_group('monitoring options')
 
-mgroup.add_argument('cmdline', nargs='?', type=str,
-    help='search for this command in the process table')
+mgroup.add_argument('cmdline', nargs=1, type=str,
+    help='search for this command in the process table. The command line should be specified as one big string, and we specifically extract only a single argument as the command line.')
 mgroup.add_argument('-e', '--env', default=None, type=str,
     help='path to an environmental setup script that will be run before we restart any processes. \
 DEFAULT=None (no environment sourced)')
@@ -77,6 +79,8 @@ for path in [args.out_dir, args.log_dir]:
         except OSError: ### already exists, may be due to another process creating the directory
             pass
 
+args.cmdline = args.cmdline[0].split() ### FIXME: this may be fragile if there are spaces in the arguments of the command line to be tracked...
+
 #-------------------------------------------------
 
 ### get logger
@@ -84,27 +88,28 @@ logger = utils.logger(tag=args.tag, directory=args.log_dir, log_level=args.log_l
 
 ### check process table
 utils.autorestart(
-    args.cmd,
+    args.cmdline,
     env=args.env,
     num_instances=args.num_instances,
     directory=args.out_dir,
-    recipients=args.recipients,
+    recipients=args.recipient,
     logger=logger,
 )
-ags.num_trials -= 1
+args.num_trials -= 1
 
 ### repeat this for some number of trials
-sleep_string = 'sleeping for %.3 sec'%cadence ### define this once outside the loop
-while args.num_trials > 0:
-    logger.info(sleep_string)
-    time.sleep(args.cadence)
+if args.num_trials > 0:
+    sleep_string = 'sleeping for %.3 sec'%args.cadence ### define this once outside the loop
+    while args.num_trials > 0:
+        logger.info(sleep_string)
+        time.sleep(args.cadence)
 
-    utils.autorestart(
-        args.cmd,
-        env=args.env,
-        num_instances=args.num_instances,
-        directory=args.out_dir,
-        recipients=args.recipients,
-        logger=logger,
-    )
-    ags.num_trials -= 1
+        utils.autorestart(
+            args.cmdline,
+            env=args.env,
+            num_instances=args.num_instances,
+            directory=args.out_dir,
+            recipients=args.recipient,
+            logger=logger,
+        )
+        args.num_trials -= 1

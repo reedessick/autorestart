@@ -6,6 +6,7 @@ __author__ = "Reed Essick (reed.essick@ligo.org)"
 import os
 import logging
 import random
+import time
 
 import subprocess as sp
 
@@ -63,14 +64,14 @@ def logpath(name, directory=DEFAULT_LOG_DIR):
 
 #-------------------------------------------------
 
-def logger(tag=DEFAULT_TAG, directory=DEFAULT_LOG_DIR, log_leval=DEFAULT_LOG_LEVEL, verbose=False):
+def logger(tag=DEFAULT_TAG, directory=DEFAULT_LOG_DIR, log_level=DEFAULT_LOG_LEVEL, verbose=False):
     name = logname(tag=tag)
     path = logpath(name, directory=directory)
 
     logger = logging.getLogger(name)
     logger.setLevel(log_level)
 
-    handlers = [logging.FileHander(path)]
+    handlers = [logging.FileHandler(path)]
     if verbose:
         handlers.append( logging.StreamHandler() )
 
@@ -87,7 +88,7 @@ FOUNDTEMP='found pid=%d'
 def grep(cmdline, username=DEFAULT_USERNAME, logger=None):
     log = logger is not None
     if log:
-        logger.info(GREPTEMP%(username, cmdline))
+        logger.info(GREPTEMP%(username, ' '.join(cmdline)))
 
     pids = []
     for proc in psutil.process_iter(attrs=['pid', 'cmdline', 'username']):
@@ -98,15 +99,17 @@ def grep(cmdline, username=DEFAULT_USERNAME, logger=None):
             pids.append(pid)
     return pids
 
-RESTARTTEMP = '%s 1> %s 2> %s'
+ENVTEMP='establishing env via %s'
+RESTARTTEMP='%s 1> %s 2> %s'
+PIDTEMP='new process pid=%d'
 def restart(cmdline, env=None, directory=DEFAULT_LOG_DIR, logger=None):
     log = logger is not None
 
     ### set up environment
     if env is not None:
         if log:
-            logger.info('sourcing '+env)
-        sp.Popen(['source', env]).wait()
+            logger.info(ENVTEMP%env)
+        sp.Popen([env]).wait()
 
     ### generate new target process
     name = randname(os.path.basename(cmdline[0]))
@@ -121,6 +124,9 @@ def restart(cmdline, env=None, directory=DEFAULT_LOG_DIR, logger=None):
     proc = sp.Popen(cmdline, stdout=out, stderr=err)
     out.close()
     err.close()
+    
+    if log:
+        logger.info(PIDTEMP%proc.pid)
 
 YESALERTTEMP='alerting: %s'
 MISSALERTTEMP='no one to alert'
@@ -132,10 +138,10 @@ username : %(username)s
 sought : %(num_instances)d
 found : %(num_found)d
 date : %(date)s'''
-def alert(cmdline, username, num_new, num_instances, recipeients=DEFAULT_RECIPIENTS, logger=None):
+def alert(cmdline, username, num_new, num_instances, recipients=DEFAULT_RECIPIENTS, logger=None):
     if recipients:
         if logger is not None:
-            logger.info(YESALERT%recipients)
+            logger.info(YESALERTTEMP%(' '.join(recipients)))
 
         d = {
             'cmdline':' '.join(cmdline),
@@ -177,7 +183,7 @@ def autorestart(cmdline, env=None, username=DEFAULT_USERNAME, num_instances=DEFA
             if log:
                 logger.info(LAUNCHTEMP%num_new)
             for _ in range(num_new):
-                restart(cmdline, env=env, directory=directory, logger=None)
+                restart(cmdline, env=env, directory=directory, logger=logger)
 
             if recipients:
                 alert(cmdline, username, num_new, num_instances, recipients=recipients, logger=logger)
